@@ -2,9 +2,11 @@ import pandas as pd
 from os import path
 import numpy as np
 from glob import glob
+import re
 
 dbdir = (
-    r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database"
+    r"C:\Users\tikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database"
+    # r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database"
 )
 
 _files = [
@@ -34,39 +36,59 @@ df = pd.read_table(
 # add PAT_ID if missing (use unique ID based on the file name)
 tf = pd.isna(df["PAT_ID"])
 for row in np.where(tf)[0]:
-    id = df.at[row, "FILE VOWEL 'AH'"][:3]
-    ids = df["PAT_ID"][df["PAT_ID"].str.startswith(id, na=False)].tolist()
-    if len(ids):
-        for i in range(1000):
-            id_ = f"{id}{i:03}"
-            if id_ not in ids:
-                break
-    else:
-        id_ = f"{id}000"
-    df.at[row, "PAT_ID"] = id_
+    # id = df.at[row, "FILE VOWEL 'AH'"][:3]
+    # ids = df["PAT_ID"][df["PAT_ID"].str.startswith(id, na=False)].tolist()
+    # if len(ids):
+    #     for i in range(1000):
+    #         id_ = f"{id}{i:03}"
+    #         if id_ not in ids:
+    #             break
+    # else:
+    #     id_ = f"{id}000"
+    # df.at[row, "PAT_ID"] = id_
+    df.at[row, "PAT_ID"] = df.at[row, "FILE VOWEL 'AH'"]
+
+# split dx
+df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS"]]
+df.drop(columns=["#", "DIAGNOSIS"], inplace=True)
+df.drop_duplicates(subset=["PAT_ID", "VISITDATE"], inplace=True)
+df.reset_index(inplace=True)
 
 # assign for rainbow
-ra_name = [path.basename(f)[:3] for f in ra_files]
-ra_day = [int(path.basename(f)[3:5]) for f in ra_files]
+ra_names = set((path.basename(f) for f in ra_files))
 
 # remove entries without PAT_ID or FILE VOWEL 'AH'
-tf = pd.isna(df["FILE VOWEL 'AH'"])
-for row in np.where(tf)[0]:
-    df.at[row, "PAT_ID"]
-    df.at[row, "VISITDATE"].dt.day
-# ids = df[miss]
-# print(ids)
+n = df.shape[0]
+rnames = [None]*n
+isnorms = np.empty(n, bool)
+tf = np.zeros(n, bool)
+for row in range(n):
+    aname = df.at[row, "FILE VOWEL 'AH'"]
+    if pd.isna(aname):
+        id = df.at[row, "PAT_ID"][:3]
+        rname = f"{id}1NRL.NSP"
+        isnorms[row] = isnorm = rname in ra_names
+        if not isnorm:
+            day = df.at[row, "VISITDATE"].day
+            rname = f"{id}{day:02}R.NSP"
+    else:
+        isnorms[row] = isnorm = aname.endswith("NAL.NSP")
+        rname = (
+            re.sub(r"NAL\.NSP$", "NRL.NSP", aname)
+            if isnorm
+            else re.sub(r"AN\.NSP$", "R.NSP", aname)
+        )
 
-# separate diagnosis
-# df_dx = df[]
+    if rname in ra_names:
+        rnames[row] = rname
+    else:
+        tf[row] = True
 
+print(rnames)
 
-# miss = pd.isna(df[["PAT_ID", "FILE VOWEL 'AH'"]])
-# print(np.sum(miss, 0), np.sum(np.any(miss, 1), 0))
+df.insert(3, "FILE RAINBOW", rnames)
+df.insert(3, "NORM", isnorms)
+df.drop(index=np.where(tf)[0], inplace=True)
+df.reset_index(inplace=True)
 
-# print(df.info())
-
-# print(dict(df.dtypes))
-
-# drop
-# drop_duplicates
+print(df)
