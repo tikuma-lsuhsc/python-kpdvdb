@@ -1,12 +1,13 @@
 """KayPENTAX Disordered Voice Database Reader module"""
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 import pandas as pd
 from os import path
 import numpy as np
 from glob import glob as _glob
 import re, operator
+import nspfile
 
 # global variables
 _dir = None  # database dir
@@ -79,7 +80,7 @@ def load_db(dbdir):
     df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS"]]
     df.drop(columns=["#", "DIAGNOSIS"], inplace=True)
     df.drop_duplicates(subset=["PAT_ID", "VISITDATE"], inplace=True)
-    df.reset_index(inplace=True)
+    df.reset_index(inplace=True, drop=True)
 
     # assign for rainbow
     ra_names = set((path.basename(f) for f in ra_files))
@@ -114,13 +115,21 @@ def load_db(dbdir):
     df.insert(3, "FILE RAINBOW", pd.Series(rnames, dtype="string"))
     df.insert(3, "NORM", pd.Series(isnorms, dtype="boolean"))
     df.drop(index=np.where(tf)[0], inplace=True)
-    df.reset_index(inplace=True)
-    df.drop(columns=["index", "level_0"], inplace=True)
+    df.reset_index(inplace=True, drop=True)
 
     _dir = dbdir
     _df = df
     _df_dx = df_dx
     _dx = None
+
+
+def get_fields():
+    """get list of all database fields
+
+    :return: list of field names
+    :rtype: list(str)
+    """
+    return sorted([*_df.columns.values, "DIAGNOSES"])
 
 
 def get_sexes():
@@ -165,6 +174,7 @@ def get_diagnoses():
     :return: list of diagnoses
     :rtype: list(str)
     """
+
     return _df_dx["DIAGNOSIS"].cat.categories.tolist()
 
 
@@ -184,31 +194,36 @@ def _get_dx_series():
     return _dx
 
 
-def query(subset=None, **filters):
+def query(subset=None, include_diagnoses=False, **filters):
     """query database
 
     :param subset: database columns to return, defaults to None
     :type subset: sequence of str, optional
+    :param include_diagnoses: True to include DIAGNOSES column. Ignored if subset or filters
+                              specifies DIAGNOSES, defaults to False
+    :type include_diagnoses: bool, optional
     :param **filters: query conditions (values) for specific per-database columns (keys)
     :type **filters: dict
     :return: query result
     :rtype: pandas.DataFrame
 
-    Valid values of `subset` argument
-    ---------------------------------
-    
-    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1 
+    Valid values of `subset` argument (get_fields() + "MDVP")
+    ---------------------------------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
       (except for "DIAGNOSIS" and "#")
     * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
+    * "NORM" - True if normal data, False if pathological data
     * "MDVP" - Short-hand notation to include all the MDVP parameter measurements: from "Fo" to "PER"
 
-    Valid `filters` keyword arguments
-    ---------------------------------
-    
-    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1 
+    Valid `filters` keyword arguments (get_fields())
+    ------------------------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
       (except for "DIAGNOSIS" and "#")
     * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
-
+    * "NORM" - True if normal data, False if pathological data
+    
     Valid `filters` keyword argument values
     ---------------------------------------
 
@@ -220,7 +235,11 @@ def query(subset=None, **filters):
 
     # work on a copy of the dataframe
     df = _df.copy(deep=True)
-    if (subset is None or "DIAGNOSES" in subset) or "DIAGNOSES" in filters:
+    if (
+        include_diagnoses
+        or (subset is not None and "DIAGNOSES" in subset)
+        or "DIAGNOSES" in filters
+    ):
         df.insert(3, "DIAGNOSES", _get_dx_series())
 
     # apply the filters to reduce the rows
@@ -261,3 +280,134 @@ def query(subset=None, **filters):
 
     return df
 
+
+def get_files(type, auxdata_fields=None, **filters):
+    """get NSP filepaths
+
+    :param type: utterance type
+    :type type: "rainbow" or "ah"
+    :param other_fields: names of auxiliary data fields to return, defaults to None
+    :type other_fields: sequence of str, optional
+    :param **filters: query conditions (values) for specific per-database columns (keys)
+    :type **filters: dict
+    :return: list of NSP files and optionally
+    :rtype: list(str) or tuple(list(str), pandas.DataFrame)
+
+    Valid values of `subset` argument
+    ---------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
+      (except for "DIAGNOSIS" and "#")
+    * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
+    * "NORM" - True if normal data, False if pathological data
+    * "MDVP" - Short-hand notation to include all the MDVP parameter measurements: from "Fo" to "PER"
+
+    Valid `filters` keyword arguments
+    ---------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
+      (except for "DIAGNOSIS" and "#")
+    * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
+    * "NORM" - True if normal data, False if pathological data
+
+    Valid `filters` keyword argument values
+    ---------------------------------------
+
+    * A scalar value
+    * For numeric and date columns, 2-element sequence to define a range: [start, end)
+    * For all other columns, a sequence of allowable values
+    """
+
+    try:
+        col, subdir = {
+            "rainbow": ("FILE RAINBOW", "RAINBOW"),
+            "ah": ("FILE VOWEL 'AH'", "AH"),
+        }[type]
+    except:
+        raise ValueError(f'Unknown type: {type} (must be either "rainbow" or "ah")')
+
+    subset = [col, "NORM"]
+    if auxdata_fields is not None:
+        subset.extend(auxdata_fields)
+
+    df = query(subset, **filters)
+    df = df[df.iloc[:, 0].notna()]  # drop entries w/out file
+    fdf = df.iloc[:, :2]
+    files = [
+        path.join(_dir, "NORM" if isnorm else "PATHOL", subdir, f)
+        for f, isnorm in zip(fdf[col], fdf["NORM"])
+    ]
+
+    return (
+        files
+        if auxdata_fields is None
+        else (files, df.iloc[:, 2:].reset_index(drop=True))
+    )
+
+
+def iter_data(type, channels=None, auxdata_fields=None, **filters):
+    """iterate over data samples
+
+    :param type: utterance type
+    :type type: "rainbow" or "ah"
+    :param channels: audio channels to read ('a', 'b', 0-1, or a sequence thereof),
+                     defaults to None (all channels)
+    :type channels: str, int, sequence, optional
+    :param other_fields: names of auxiliary data fields to return, defaults to None
+    :type other_fields: sequence of str, optional
+    :param **filters: query conditions (values) for specific per-database columns (keys)
+    :type **filters: dict
+    :yield:
+        - sampling rate : audio sampling rate in samples/second
+        - data  : audio data, 1-D for 1-channel NSP (only A channel), or 2-D of shape
+                  (Nsamples, 2) for 2-channel NSP
+        - auxdata : (optional) requested auxdata of the data if auxdata_fields is specified
+    :ytype: tuple(int, numpy.ndarray(int16)[, pandas.Series])
+
+    Iterates over all the DataFrame columns, returning a tuple with the column name and the content as a Series.
+
+    Yields
+
+        labelobject
+
+            The column names for the DataFrame being iterated over.
+        contentSeries
+
+            The column entries belonging to each label, as a Series.
+
+
+
+    Valid values of `subset` argument
+    ---------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
+      (except for "DIAGNOSIS" and "#")
+    * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
+    * "NORM" - True if normal data, False if pathological data
+    * "MDVP" - Short-hand notation to include all the MDVP parameter measurements: from "Fo" to "PER"
+
+    Valid `filters` keyword arguments
+    ---------------------------------
+
+    * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
+      (except for "DIAGNOSIS" and "#")
+    * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
+    * "NORM" - True if normal data, False if pathological data
+
+    Valid `filters` keyword argument values
+    ---------------------------------------
+
+    * A scalar value
+    * For numeric and date columns, 2-element sequence to define a range: [start, end)
+    * For all other columns, a sequence of allowable values
+    """
+
+    files = get_files(type, auxdata_fields, **filters)
+
+    hasaux = auxdata_fields is not None
+    if hasaux:
+        files, auxdata = files
+
+    for i, file in enumerate(files):
+        out = nspfile.read(file, channels)
+        yield (*out, auxdata.loc[i, :]) if hasaux else out
