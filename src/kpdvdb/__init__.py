@@ -274,7 +274,7 @@ def query(subset=None, include_diagnoses=False, **filters):
         try:
             df = df[subset]
         except:
-            ValueError(
+            raise ValueError(
                 f'At least one label in the "subset" argument is invalid: {subset}'
             )
 
