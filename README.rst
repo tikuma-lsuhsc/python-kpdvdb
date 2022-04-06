@@ -32,13 +32,10 @@ Use
 
 .. code-block:: python
 
-  import kpdvdb
-
-  # to read docstrings
-  help(kpdvdb)
+  from kpdvdb import KPDVDB
 
   # to initialize (must call this once in every Python session)
-  kpdvdb.load_db('<path to CDROM drive or root directory of the database>')
+  kpdvdb = KPDVDB('<path to CDROM drive or root directory of the database>')
 
   # to list all the data fields 
   print(kpdvdb.get_fields())
