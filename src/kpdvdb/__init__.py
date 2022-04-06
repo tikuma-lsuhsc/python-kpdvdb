@@ -287,8 +287,8 @@ class KPDVDB:
 
         :param type: utterance type
         :type type: "rainbow" or "ah"
-        :param other_fields: names of auxiliary data fields to return, defaults to None
-        :type other_fields: sequence of str, optional
+        :param auxdata_fields: names of auxiliary data fields to return, defaults to None
+        :type auxdata_fields: sequence of str, optional
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :return: list of NSP files and optionally
@@ -345,7 +345,9 @@ class KPDVDB:
             else (files, df.iloc[:, 2:].reset_index(drop=True))
         )
 
-    def iter_data(self, type, channels=None, auxdata_fields=None, **filters):
+    def iter_data(
+        self, type, channels=None, auxdata_fields=None, normalize=True, **filters
+    ):
         """iterate over data samples
 
         :param type: utterance type
@@ -353,8 +355,10 @@ class KPDVDB:
         :param channels: audio channels to read ('a', 'b', 0-1, or a sequence thereof),
                         defaults to None (all channels)
         :type channels: str, int, sequence, optional
-        :param other_fields: names of auxiliary data fields to return, defaults to None
-        :type other_fields: sequence of str, optional
+        :param auxdata_fields: names of auxiliary data fields to return, defaults to None
+        :type auxdata_fields: sequence of str, optional
+        :param normalize: True to return normalized f64 data, False to return i16 data, defaults to True
+        :type normalize: bool, optional
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :yield:
@@ -410,4 +414,6 @@ class KPDVDB:
 
         for i, file in enumerate(files):
             out = nspfile.read(file, channels)
+            if normalize:
+                out = (out[0], out[1] / 2.0**15)
             yield (*out, auxdata.loc[i, :]) if hasaux else out
