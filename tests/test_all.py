@@ -60,7 +60,9 @@ def test_query_dx_filter(kpdvdb):
 
     df = kpdvdb.query(diagnoses_filter=func)
     assert "DIAGNOSES" not in df
+    assert len(df)
 
     df = kpdvdb.query(diagnoses_filter=func, include_diagnoses=True)
     assert "DIAGNOSES" in df
+    assert len(df)
     assert all(func(dxs) for dxs in df["DIAGNOSES"])

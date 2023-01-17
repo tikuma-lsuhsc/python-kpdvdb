@@ -253,9 +253,7 @@ class KPDVDB:
             or "DIAGNOSES" in filters
         )
 
-        test_dx = lambda x: (diagnoses_filter and any(diagnoses_filter(xi) for xi in x))
-
-        if incl_dx or test_dx:
+        if incl_dx or diagnoses_filter:
             df.insert(3, "DIAGNOSES", self._get_dx_series())
 
         # apply the filters to reduce the rows
@@ -279,9 +277,8 @@ class KPDVDB:
                     df = df[s == fcond]
 
         # if diagnosis screening function is given, further filter the rows
-        if test_dx:
-            s = df["DIAGNOSES"]
-            df = df[[test_dx(v) for v in s]]
+        if diagnoses_filter:
+            df = df[[diagnoses_filter(v) for v in df["DIAGNOSES"]]]
 
             if not incl_dx:
                 # if dx not requested, drop it
