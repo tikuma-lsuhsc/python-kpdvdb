@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.3.0] - 2023-01-17
+
 ### Added
 - Added diagnoses_filter argument to query(), get_files(), & iter_data()
 
