@@ -52,3 +52,15 @@ def test_iter_data(kpdvdb):
         pass
     for fs, x, info in kpdvdb.iter_data("ah", auxdata_fields=["SEX", "AGE", "NORM"]):
         pass
+
+
+def test_query_dx_filter(kpdvdb):
+
+    func = lambda dxs: any(dx.startswith("post") for dx in dxs)
+
+    df = kpdvdb.query(diagnoses_filter=func)
+    assert "DIAGNOSES" not in df
+
+    df = kpdvdb.query(diagnoses_filter=func, include_diagnoses=True)
+    assert "DIAGNOSES" in df
+    assert all(func(dxs) for dxs in df["DIAGNOSES"])

@@ -196,7 +196,13 @@ class KPDVDB:
             )
         return self._dx
 
-    def query(self, subset=None, include_diagnoses=False, **filters):
+    def query(
+        self,
+        subset=None,
+        include_diagnoses=False,
+        diagnoses_filter=None,
+        **filters,
+    ):
         """query database
 
         :param subset: database columns to return, defaults to None
@@ -204,6 +210,10 @@ class KPDVDB:
         :param include_diagnoses: True to include DIAGNOSES column. Ignored if subset or filters
                                 specifies DIAGNOSES, defaults to False
         :type include_diagnoses: bool, optional
+        :param diagnoses_filter: Function with the signature:
+                                    diagnoses_filter(diagnoses: List[str]) -> bool
+                                 Return true to include the database row to the query
+        :type diagnoses_filter: Function
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :return: query result
@@ -237,11 +247,15 @@ class KPDVDB:
 
         # work on a copy of the dataframe
         df = self._df.copy(deep=True)
-        if (
+        incl_dx = (
             include_diagnoses
             or (subset is not None and "DIAGNOSES" in subset)
             or "DIAGNOSES" in filters
-        ):
+        )
+
+        test_dx = lambda x: (diagnoses_filter and any(diagnoses_filter(xi) for xi in x))
+
+        if incl_dx or test_dx:
             df.insert(3, "DIAGNOSES", self._get_dx_series())
 
         # apply the filters to reduce the rows
@@ -264,6 +278,15 @@ class KPDVDB:
                     # look for the exact match
                     df = df[s == fcond]
 
+        # if diagnosis screening function is given, further filter the rows
+        if test_dx:
+            s = df["DIAGNOSES"]
+            df = df[[test_dx(v) for v in s]]
+
+            if not incl_dx:
+                # if dx not requested, drop it
+                df.drop("DIAGNOSES", axis=1, inplace=True)
+
         # return only the selected columns
         if subset is not None:
             try:
@@ -282,13 +305,23 @@ class KPDVDB:
 
         return df
 
-    def get_files(self, type, auxdata_fields=None, **filters):
+    def get_files(
+        self,
+        type,
+        auxdata_fields=None,
+        diagnoses_filter=None,
+        **filters,
+    ):
         """get NSP filepaths
 
         :param type: utterance type
         :type type: "rainbow" or "ah"
         :param auxdata_fields: names of auxiliary data fields to return, defaults to None
         :type auxdata_fields: sequence of str, optional
+        :param diagnoses_filter: Function with the signature:
+                                    diagnoses_filter(diagnoses: List[str]) -> bool
+                                 Return true to include the database row to the query
+        :type diagnoses_filter: Function
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :return: list of NSP files and optionally
@@ -331,7 +364,11 @@ class KPDVDB:
         if auxdata_fields is not None:
             subset.extend(auxdata_fields)
 
-        df = self.query(subset, **filters)
+        df = self.query(
+            subset,
+            diagnoses_filter=diagnoses_filter,
+            **filters,
+        )
         df = df[df.iloc[:, 0].notna()]  # drop entries w/out file
         fdf = df.iloc[:, :2]
         files = [
@@ -346,7 +383,13 @@ class KPDVDB:
         )
 
     def iter_data(
-        self, type, channels=None, auxdata_fields=None, normalize=True, **filters
+        self,
+        type,
+        channels=None,
+        auxdata_fields=None,
+        normalize=True,
+        diagnoses_filter=None,
+        **filters,
     ):
         """iterate over data samples
 
@@ -359,6 +402,10 @@ class KPDVDB:
         :type auxdata_fields: sequence of str, optional
         :param normalize: True to return normalized f64 data, False to return i16 data, defaults to True
         :type normalize: bool, optional
+        :param diagnoses_filter: Function with the signature:
+                                    diagnoses_filter(diagnoses: List[str]) -> bool
+                                 Return true to include the database row to the query
+        :type diagnoses_filter: Function
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :yield:
@@ -406,7 +453,12 @@ class KPDVDB:
         * For all other columns, a sequence of allowable values
         """
 
-        files = self.get_files(type, auxdata_fields, **filters)
+        files = self.get_files(
+            type,
+            auxdata_fields,
+            diagnoses_filter=diagnoses_filter,
+            **filters,
+        )
 
         hasaux = auxdata_fields is not None
         if hasaux:
@@ -415,5 +467,5 @@ class KPDVDB:
         for i, file in enumerate(files):
             out = nspfile.read(file, channels)
             if normalize:
-                out = (out[0], out[1] / 2.0**15)
+                out = (out[0], out[1] / 2.0 ** 15)
             yield (*out, auxdata.loc[i, :]) if hasaux else out
