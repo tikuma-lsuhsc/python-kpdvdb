@@ -324,7 +324,7 @@ class KPDVDB:
         :return: list of NSP files and optionally
         :rtype: list(str) or tuple(list(str), pandas.DataFrame)
 
-        Valid values of `subset` argument
+        Valid values of `auxdata_fields` argument
         ---------------------------------
 
         * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
@@ -425,7 +425,7 @@ class KPDVDB:
 
 
 
-        Valid values of `subset` argument
+        Valid values of `auxdata_fields` argument
         ---------------------------------
 
         * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
