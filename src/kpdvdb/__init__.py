@@ -131,7 +131,7 @@ class KPDVDB:
 
         self._dir = dbdir
         self._df = df
-        self._df_dx = df_dx
+        self._df_dx = df_dx[df_dx["DIAGNOSIS"].notna()]
         self._dx = None
 
     def get_fields(self):
