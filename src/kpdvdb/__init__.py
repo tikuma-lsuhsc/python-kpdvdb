@@ -89,8 +89,8 @@ class KPDVDB:
                 df.at[row, "PAT_ID"] = df.at[row, "FILE VOWEL 'AH'"]
 
         # split dx
-        df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS"]]
-        df.drop(columns=["#", "DIAGNOSIS"], inplace=True)
+        df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS", "LOCATION"]]
+        df.drop(columns=["#", "DIAGNOSIS", "LOCATION"], inplace=True)
         df.drop_duplicates(subset=["PAT_ID", "VISITDATE"], inplace=True)
         df.reset_index(inplace=True, drop=True)
 
@@ -150,14 +150,6 @@ class KPDVDB:
         """
         return self._df["SEX"].cat.categories.tolist()
 
-    def get_locations(self):
-        """get unique entries of LOCATION field
-
-        :return: list of sites of disorders
-        :rtype: list(str)
-        """
-        return self._df["LOCATION"].cat.categories.tolist()
-
     def get_natlangs(self):
         """get unique entries of NATLANGS field
 
@@ -174,13 +166,17 @@ class KPDVDB:
         """
         return self._df["ORIGIN"].cat.categories.tolist()
 
-    def get_diagnoses(self):
+    def get_diagnoses(self, include_locations=False):
         """get unique entries of DIAGNOSIS field
 
+        :param include_locations: True to also return diagnosis locations, defaults to False
+        :type include_locations: bool, optional
         :return: list of diagnoses
         :rtype: list(str)
         """
 
+        if include_locations:
+            return self._df_dx[["DIAGNOSIS", "LOCATION"]].drop_duplicates()
         return self._df_dx["DIAGNOSIS"].cat.categories.tolist()
 
     def _get_dx_series(self):

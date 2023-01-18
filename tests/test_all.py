@@ -24,10 +24,10 @@ def kpdvdb():
 def test_basics(kpdvdb):
     print(kpdvdb.get_fields())
     print(kpdvdb.get_sexes())
-    print(kpdvdb.get_locations())
     print(kpdvdb.get_natlangs())
     print(kpdvdb.get_origins())
     print(kpdvdb.get_diagnoses())
+    print(kpdvdb.get_diagnoses(True))
 
 
 def test_only_knowns():
