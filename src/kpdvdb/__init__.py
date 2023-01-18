@@ -11,7 +11,7 @@ import nspfile
 
 
 class KPDVDB:
-    def __init__(self, dbdir):
+    def __init__(self, dbdir, remove_unknowns=False):
         """KPDVDB constructor
 
         :param dbdir: path to the cdrom drive or the directory hosting a copy of the database
@@ -25,9 +25,9 @@ class KPDVDB:
         self._dx = None  # patient diagnoses series
 
         # load the database
-        self._load_db(dbdir)
+        self._load_db(dbdir, remove_unknowns)
 
-    def _load_db(self, dbdir):
+    def _load_db(self, dbdir, remove_unknowns):
         """load disordered voice database
 
         :param dbdir: path to the cdrom drive or the directory hosting a copy of the database
@@ -71,19 +71,22 @@ class KPDVDB:
         )
 
         # add PAT_ID if missing (use unique ID based on the file name)
-        tf = pd.isna(df["PAT_ID"])
-        for row in np.where(tf)[0]:
-            # id = df.at[row, "FILE VOWEL 'AH'"][:3]
-            # ids = df["PAT_ID"][df["PAT_ID"].str.startswith(id, na=False)].tolist()
-            # if len(ids):
-            #     for i in range(1000):
-            #         id_ = f"{id}{i:03}"
-            #         if id_ not in ids:
-            #             break
-            # else:
-            #     id_ = f"{id}000"
-            # df.at[row, "PAT_ID"] = id_
-            df.at[row, "PAT_ID"] = df.at[row, "FILE VOWEL 'AH'"]
+        if remove_unknowns:
+            df = df[df["PAT_ID"].notna()]
+        else:
+            tf = pd.isna(df["PAT_ID"])
+            for row in np.where(tf)[0]:
+                # id = df.at[row, "FILE VOWEL 'AH'"][:3]
+                # ids = df["PAT_ID"][df["PAT_ID"].str.startswith(id, na=False)].tolist()
+                # if len(ids):
+                #     for i in range(1000):
+                #         id_ = f"{id}{i:03}"
+                #         if id_ not in ids:
+                #             break
+                # else:
+                #     id_ = f"{id}000"
+                # df.at[row, "PAT_ID"] = id_
+                df.at[row, "PAT_ID"] = df.at[row, "FILE VOWEL 'AH'"]
 
         # split dx
         df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS"]]

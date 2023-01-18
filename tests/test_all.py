@@ -7,13 +7,18 @@ import re
 import pytest
 
 
+def load_db(remove_unknowns=False):
+    return KPDVDB(
+        # r"C:\Users\tikum\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # excalibur
+        # r"C:\Users\tikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database", # samsung
+        r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # olol
+        remove_unknowns,
+    )
+
+
 @pytest.fixture(scope="module")
 def kpdvdb():
-    return KPDVDB(
-        # r"C:\Users\tikum\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database"  # excalibur
-        # r"C:\Users\tikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database" # samsung
-        r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database"  # olol
-    )
+    return load_db()
 
 
 def test_basics(kpdvdb):
@@ -23,6 +28,11 @@ def test_basics(kpdvdb):
     print(kpdvdb.get_natlangs())
     print(kpdvdb.get_origins())
     print(kpdvdb.get_diagnoses())
+
+
+def test_only_knowns():
+    db = load_db(True)
+    assert not db._df["VISITDATE"].isna().sum()
 
 
 def test_query(kpdvdb):
