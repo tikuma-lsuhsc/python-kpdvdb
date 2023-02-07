@@ -75,18 +75,7 @@ class KPDVDB:
             df = df[df["PAT_ID"].notna()]
         else:
             tf = pd.isna(df["PAT_ID"])
-            for row in np.where(tf)[0]:
-                # id = df.at[row, "FILE VOWEL 'AH'"][:3]
-                # ids = df["PAT_ID"][df["PAT_ID"].str.startswith(id, na=False)].tolist()
-                # if len(ids):
-                #     for i in range(1000):
-                #         id_ = f"{id}{i:03}"
-                #         if id_ not in ids:
-                #             break
-                # else:
-                #     id_ = f"{id}000"
-                # df.at[row, "PAT_ID"] = id_
-                df.at[row, "PAT_ID"] = df.at[row, "FILE VOWEL 'AH'"]
+            df.loc[tf, "PAT_ID"] = df.loc[tf, "FILE VOWEL 'AH'"].str.slice(stop=-6)
 
         # split dx
         df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS", "LOCATION"]]
