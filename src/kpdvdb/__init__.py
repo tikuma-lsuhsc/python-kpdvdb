@@ -117,6 +117,7 @@ class KPDVDB:
         df.insert(3, "NORM", pd.Series(isnorms, dtype="boolean"))
         df.drop(index=np.where(tf)[0], inplace=True)
         df.reset_index(inplace=True, drop=True)
+        df.index.set_names("ID", inplace=True)
 
         self._dir = dbdir
         self._df = df
