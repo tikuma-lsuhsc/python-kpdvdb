@@ -170,7 +170,6 @@ class KPDVDB:
         return self._df_dx["DIAGNOSIS"].cat.categories.tolist()
 
     def _get_dx_series(self):
-
         if self._dx is None:  # one-time operation
             self._dx = pd.Series(
                 [
@@ -254,6 +253,7 @@ class KPDVDB:
                     s = df[fcol]
             except:
                 raise ValueError(f"{fcol} is not a valid column label")
+
             if fcol == "DIAGNOSES":
                 fcond = set([fcond]) if isinstance(fcond, str) else set(fcond)
                 df = df[[len(fcond & set(v)) > 0 for v in s]]
@@ -296,15 +296,15 @@ class KPDVDB:
 
     def get_files(
         self,
-        type,
+        task,
         auxdata_fields=None,
         diagnoses_filter=None,
         **filters,
     ):
         """get NSP filepaths
 
-        :param type: utterance type
-        :type type: "rainbow" or "ah"
+        :param task: utterance task
+        :type task: "rainbow" or "ah"
         :param auxdata_fields: names of auxiliary data fields to return, defaults to None
         :type auxdata_fields: sequence of str, optional
         :param diagnoses_filter: Function with the signature:
@@ -346,9 +346,9 @@ class KPDVDB:
             col, subdir = {
                 "rainbow": ("FILE RAINBOW", "RAINBOW"),
                 "ah": ("FILE VOWEL 'AH'", "AH"),
-            }[type]
+            }[task]
         except:
-            raise ValueError(f'Unknown type: {type} (must be either "rainbow" or "ah")')
+            raise ValueError(f'Unknown voice task: {task} (must be either "rainbow" or "ah")')
 
         columns = [col, "NORM"]
         if auxdata_fields is not None:
@@ -374,7 +374,7 @@ class KPDVDB:
 
     def iter_data(
         self,
-        type,
+        task,
         channels=None,
         auxdata_fields=None,
         normalize=True,
@@ -383,8 +383,8 @@ class KPDVDB:
     ):
         """iterate over data samples
 
-        :param type: utterance type
-        :type type: "rainbow" or "ah"
+        :param task: utterance task
+        :type task: "rainbow" or "ah"
         :param channels: audio channels to read ('a', 'b', 0-1, or a sequence thereof),
                         defaults to None (all channels)
         :type channels: str, int, sequence, optional
@@ -445,7 +445,7 @@ class KPDVDB:
         """
 
         files = self.get_files(
-            type,
+            task,
             auxdata_fields,
             diagnoses_filter=diagnoses_filter,
             **filters,
@@ -459,8 +459,8 @@ class KPDVDB:
             out = self._read_file(file, channels, normalize)
             yield (*out, auxdata.loc[i, :]) if hasaux else out
 
-    def read_data(self, id, type=None, channels=None, normalize=True):
-        file = self.get_files(type, ID=id)[0]
+    def read_data(self, id, task=None, channels=None, normalize=True):
+        file = self.get_files(task, ID=id)[0]
         return self._read_file(file, channels, normalize)
 
     def _read_file(self, file, channels=None, normalize=True):
