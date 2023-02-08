@@ -248,7 +248,10 @@ class KPDVDB:
         # apply the filters to reduce the rows
         for fcol, fcond in filters.items():
             try:
-                s = df[fcol]
+                if fcol == "ID":
+                    s = df.index
+                else:
+                    s = df[fcol]
             except:
                 raise ValueError(f"{fcol} is not a valid column label")
             if fcol == "DIAGNOSES":
@@ -318,6 +321,7 @@ class KPDVDB:
 
         * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
         (except for "DIAGNOSIS" and "#")
+        * "ID" - recording ID returned by query()
         * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
         * "NORM" - True if normal data, False if pathological data
         * "MDVP" - Short-hand notation to include all the MDVP parameter measurements: from "Fo" to "PER"
@@ -419,6 +423,7 @@ class KPDVDB:
 
         * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
         (except for "DIAGNOSIS" and "#")
+        * "ID" - recording ID returned by query()
         * "DIAGNOSES" - A list containing all the original "DIAGNOSIS" associated with the subject
         * "NORM" - True if normal data, False if pathological data
         * "MDVP" - Short-hand notation to include all the MDVP parameter measurements: from "Fo" to "PER"
