@@ -197,16 +197,16 @@ class KPDVDB:
 
     def query(
         self,
-        subset=None,
+        columns=None,
         include_diagnoses=False,
         diagnoses_filter=None,
         **filters,
     ):
         """query database
 
-        :param subset: database columns to return, defaults to None
-        :type subset: sequence of str, optional
-        :param include_diagnoses: True to include DIAGNOSES column. Ignored if subset or filters
+        :param columns: database columns to return, defaults to None
+        :type columns: sequence of str, optional
+        :param include_diagnoses: True to include DIAGNOSES column. Ignored if columns or filters
                                 specifies DIAGNOSES, defaults to False
         :type include_diagnoses: bool, optional
         :param diagnoses_filter: Function with the signature:
@@ -218,7 +218,7 @@ class KPDVDB:
         :return: query result
         :rtype: pandas.DataFrame
 
-        Valid values of `subset` argument (get_fields() + "MDVP")
+        Valid values of `columns` argument (get_fields() + "MDVP")
         ---------------------------------------------------------
 
         * All columns of the database specified in EXCEL50/TEXT/README.TXT Section 3.1
@@ -248,7 +248,7 @@ class KPDVDB:
         df = self._df.copy(deep=True)
         incl_dx = (
             include_diagnoses
-            or (subset is not None and "DIAGNOSES" in subset)
+            or (columns is not None and "DIAGNOSES" in columns)
             or "DIAGNOSES" in filters
         )
 
@@ -284,19 +284,19 @@ class KPDVDB:
                 df.drop("DIAGNOSES", axis=1, inplace=True)
 
         # return only the selected columns
-        if subset is not None:
+        if columns is not None:
             try:
-                i = subset.index("MDVP")
+                i = columns.index("MDVP")
                 cols = df.columns
                 j = np.where(cols == "Fo")[0][0]
-                subset = [*subset[:i], *cols[j:].values, *subset[i + 1 :]]
+                columns = [*columns[:i], *cols[j:].values, *columns[i + 1 :]]
             except:
                 pass
             try:
-                df = df[subset]
+                df = df[columns]
             except:
                 ValueError(
-                    f'At least one label in the "subset" argument is invalid: {subset}'
+                    f'At least one label in the "columns" argument is invalid: {columns}'
                 )
 
         return df
@@ -356,12 +356,12 @@ class KPDVDB:
         except:
             raise ValueError(f'Unknown type: {type} (must be either "rainbow" or "ah")')
 
-        subset = [col, "NORM"]
+        columns = [col, "NORM"]
         if auxdata_fields is not None:
-            subset.extend(auxdata_fields)
+            columns.extend(auxdata_fields)
 
         df = self.query(
-            subset,
+            columns,
             diagnoses_filter=diagnoses_filter,
             **filters,
         )
