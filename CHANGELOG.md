@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.5.0] - 2023-02-07
+
+### Added
+
+- `read_data()` method to read specific recording
+
+### Changed
+
+- the index of the dataframe returned by `query()` is now named `ID`
+- **filters argument accepts `ID`
+- `type` argument renamed to `task`
+- `PAT_ID` shortened of those data without supplied ID
+
 ## [0.4.0] - 2023-01-18
 
 ### Added
