@@ -8,10 +8,24 @@ import numpy as np
 from glob import glob as _glob
 import re, operator
 import nspfile
+from typing import Literal, Tuple, List
+import ast
+
+TaskType = Literal["AH", "RAINBOW"]
+
+DataField = Literal[
+    # fmt:off
+    "PAT_ID", "VISITDATE", "FILE VOWEL 'AH'", "NORM", "FILE RAINBOW", "AGE", "SEX",
+    "SMOKE", "NATLANG", "ORIGIN", "Fo", "To", "Fhi", "Flo", "STD", "PFR", "Fftr",
+    "Fatr", "Tsam", "Jita", "Jitt", "RAP", "PPQ", "sPPQ", "vFo", "ShdB", "Shim",
+    "APQ", "sAPQ", "vAm", "NHR", "VTI", "SPI", "FTRI", "ATRI", "DVB", "DSH",
+    "DUV", "NVB", "NSH", "NUV", "SEG", "PER",
+    # fmt:on
+]
 
 
 class KPDVDB:
-    def __init__(self, dbdir, remove_unknowns=False):
+    def __init__(self, dbdir: str, remove_unknowns: bool = False):
         """KPDVDB constructor
 
         :param dbdir: path to the cdrom drive or the directory hosting a copy of the database
@@ -124,45 +138,45 @@ class KPDVDB:
         self._df_dx = df_dx[df_dx["DIAGNOSIS"].notna()]
         self._dx = None
 
-    def get_fields(self):
+    def get_fields(self) -> List[str]:
         """get list of all database fields
 
         :return: list of field names
-        :rtype: list(str)
+        :rtype: List[str]
         """
         return sorted([*self._df.columns.values, "DIAGNOSES"])
 
-    def get_sexes(self):
+    def get_sexes(self) -> List[str]:
         """get unique entries of SEX field
 
         :return: fixed list ["F", "M"]
-        :rtype: list(str)
+        :rtype: List[str]
         """
         return self._df["SEX"].cat.categories.tolist()
 
-    def get_natlangs(self):
+    def get_natlangs(self) -> List[str]:
         """get unique entries of NATLANGS field
 
         :return: list of subjects' native languages
-        :rtype: list(str)
+        :rtype: List[str]
         """
         return self._df["NATLANG"].cat.categories.tolist()
 
-    def get_origins(self):
+    def get_origins(self) -> List[str]:
         """get unique entries of ORIGIN field
 
         :return: list of subjects' races
-        :rtype: list(str)
+        :rtype: List[str]
         """
         return self._df["ORIGIN"].cat.categories.tolist()
 
-    def get_diagnoses(self, include_locations=False):
+    def get_diagnoses(self, include_locations=False) -> List[str]:
         """get unique entries of DIAGNOSIS field
 
         :param include_locations: True to also return diagnosis locations, defaults to False
         :type include_locations: bool, optional
         :return: list of diagnoses
-        :rtype: list(str)
+        :rtype: List[str]
         """
 
         if include_locations:
@@ -186,15 +200,15 @@ class KPDVDB:
 
     def query(
         self,
-        columns=None,
-        include_diagnoses=False,
-        diagnoses_filter=None,
+        columns: List[DataField] = None,
+        include_diagnoses: bool = False,
+        diagnoses_filter: bool = None,
         **filters,
-    ):
+    ) -> pd.DataFrame:
         """query database
 
         :param columns: database columns to return, defaults to None
-        :type columns: sequence of str, optional
+        :type columns: List[DataField], optional
         :param include_diagnoses: True to include DIAGNOSES column. Ignored if columns or filters
                                 specifies DIAGNOSES, defaults to False
         :type include_diagnoses: bool, optional
@@ -296,11 +310,11 @@ class KPDVDB:
 
     def get_files(
         self,
-        task,
-        auxdata_fields=None,
-        diagnoses_filter=None,
+        task: TaskType,
+        auxdata_fields: List[DataField] = None,
+        diagnoses_filter: List[str] = None,
         **filters,
-    ):
+    ) -> List[str] | Tuple[List[str], pd.DataFrame]:
         """get NSP filepaths
 
         :param task: utterance task
@@ -314,7 +328,7 @@ class KPDVDB:
         :param **filters: query conditions (values) for specific per-database columns (keys)
         :type **filters: dict
         :return: list of NSP files and optionally
-        :rtype: list(str) or tuple(list(str), pandas.DataFrame)
+        :rtype: List[str] or tuple(List[str], pandas.DataFrame)
 
         Valid values of `auxdata_fields` argument
         ---------------------------------
@@ -348,7 +362,9 @@ class KPDVDB:
                 "ah": ("FILE VOWEL 'AH'", "AH"),
             }[task]
         except:
-            raise ValueError(f'Unknown voice task: {task} (must be either "rainbow" or "ah")')
+            raise ValueError(
+                f'Unknown voice task: {task} (must be either "rainbow" or "ah")'
+            )
 
         columns = [col, "NORM"]
         if auxdata_fields is not None:
@@ -374,11 +390,11 @@ class KPDVDB:
 
     def iter_data(
         self,
-        task,
-        channels=None,
-        auxdata_fields=None,
-        normalize=True,
-        diagnoses_filter=None,
+        task: TaskType,
+        channels: str | int | list = None,
+        auxdata_fields: List[DataField] = None,
+        normalize: bool = True,
+        diagnoses_filter: List[str] = None,
         **filters,
     ):
         """iterate over data samples
@@ -459,7 +475,26 @@ class KPDVDB:
             out = self._read_file(file, channels, normalize)
             yield (*out, auxdata.loc[i, :]) if hasaux else out
 
-    def read_data(self, id, task=None, channels=None, normalize=True):
+    def read_data(
+        self,
+        id: int,
+        task: TaskType = None,
+        channels: str | int | list = None,
+        normalize: bool = True,
+    ) -> Tuple[int, np.array]:
+        """read audio data of one voice task of a recording session
+
+        :param id: recording id
+        :type id: int
+        :param task: voice task, defaults to None
+        :type task: TaskType, optional
+        :param channels: audio channel, defaults to None
+        :type channels: str | int | list, optional
+        :param normalize: True to normalize data between -1 and 1, defaults to True
+        :type normalize: bool, optional
+        :return: tuple of sampling rate in S/s and data samples numpy array
+        :rtype: tuple(int,np.array)
+        """
         file = self.get_files(task, ID=id)[0]
         return self._read_file(file, channels, normalize)
 
