@@ -9,9 +9,9 @@ import pytest
 
 def load_db(remove_unknowns=False):
     return KPDVDB(
-        # r"C:\Users\tikum\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # excalibur
+        r"C:\Users\tikum\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # excalibur
         # r"C:\Users\tikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database", # samsung
-        r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # olol
+        # r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # olol
         remove_unknowns,
     )
 
@@ -36,7 +36,6 @@ def test_only_knowns():
 
 
 def test_query(kpdvdb):
-
     df = kpdvdb.query()
     df = kpdvdb.query(["MDVP"])
     df = kpdvdb.query(["DIAGNOSES"])
@@ -65,7 +64,6 @@ def test_iter_data(kpdvdb):
 
 
 def test_query_dx_filter(kpdvdb):
-
     func = lambda dxs: any(dx.startswith("post") for dx in dxs)
 
     df = kpdvdb.query(diagnoses_filter=func)
@@ -76,3 +74,8 @@ def test_query_dx_filter(kpdvdb):
     assert "DIAGNOSES" in df
     assert len(df)
     assert all(func(dxs) for dxs in df["DIAGNOSES"])
+
+
+def test_read_data(kpdvdb):
+    df = kpdvdb.query()
+    kpdvdb.read_data(df.sample(1).index[0], "ah")

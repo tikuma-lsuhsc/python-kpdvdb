@@ -456,7 +456,15 @@ class KPDVDB:
             files, auxdata = files
 
         for i, file in enumerate(files):
-            out = nspfile.read(file, channels)
-            if normalize:
-                out = (out[0], out[1] / 2.0 ** 15)
+            out = self._read_file(file, channels, normalize)
             yield (*out, auxdata.loc[i, :]) if hasaux else out
+
+    def read_data(self, id, type=None, channels=None, normalize=True):
+        file = self.get_files(type, ID=id)[0]
+        return self._read_file(file, channels, normalize)
+
+    def _read_file(self, file, channels=None, normalize=True):
+        fs, x = nspfile.read(file, channels)
+        if normalize:
+            x = x / 2.0**15
+        return fs, x
