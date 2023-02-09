@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.6.0] - 2023-02-09
+
+### Changed
+
+- `ID` changed from sequential int to 5-letter str
+- revamped database loader
+
 ## [0.5.0] - 2023-02-07
 
 ### Added

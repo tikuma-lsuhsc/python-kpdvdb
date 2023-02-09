@@ -1,21 +1,20 @@
 """KayPENTAX Disordered Voice Database Reader module"""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 import pandas as pd
 from os import path
 import numpy as np
-from glob import glob as _glob
+from glob import glob
 import re, operator
 import nspfile
 from typing import Literal, Tuple, List
-import ast
 
 TaskType = Literal["AH", "RAINBOW"]
 
 DataField = Literal[
     # fmt:off
-    "PAT_ID", "VISITDATE", "FILE VOWEL 'AH'", "NORM", "FILE RAINBOW", "AGE", "SEX",
+    "PAT_ID", "VISITDATE", "FILE AH", "NORM", "FILE RAINBOW", "AGE", "SEX",
     "SMOKE", "NATLANG", "ORIGIN", "Fo", "To", "Fhi", "Flo", "STD", "PFR", "Fftr",
     "Fatr", "Tsam", "Jita", "Jitt", "RAP", "PPQ", "sPPQ", "vFo", "ShdB", "Shim",
     "APQ", "sAPQ", "vAm", "NHR", "VTI", "SPI", "FTRI", "ATRI", "DVB", "DSH",
@@ -50,29 +49,45 @@ class KPDVDB:
         * This function must be called at the beginning of each Python session
         * Database is loaded from the text file found at: <dbdir>/EXCEL50/TEXT/KAYCDALL.TXT
         * Only entries with NSP files are included
-        * PAT_ID of the entries without PAT_ID field uses the "FILE VOWEL 'AH'" field value
-        as the PAT_ID value
+        * Dataframe ID is set to the common prefix of AH and RAINBOW files
 
         """
 
         if self._dir == dbdir:
             return
 
-        ra_files = operator.iconcat(
-            *(
-                _glob(path.join(dbdir, vtype, "RAINBOW", "*.NSP"))
-                for vtype in ("NORM", "PATHOL")
-            )
+        # gather all files: name as key and NORM/PATHOL as value
+        file2df = lambda task: pd.DataFrame(
+            [
+                [s[-1][:5], s[-1], s[-3] == "NORM"]
+                for s in (
+                    p.split(path.sep)
+                    for p in operator.iconcat(
+                        *(
+                            glob(path.join(dbdir, vtype, task, "*.NSP"))
+                            for vtype in ("NORM", "PATHOL")
+                        )
+                    )
+                )
+            ],
+            columns=["ID", "FILE", "NORM"],
+        ).set_index("ID")
+
+        files = file2df("AH").join(
+            file2df("RAINBOW"), how="outer", lsuffix=" AH", rsuffix=" RAINBOW"
+        )
+        files["NORM"] = files["NORM AH"].where(
+            files["NORM AH"].notna(), files["NORM RAINBOW"]
         )
 
-        df = pd.read_table(
+        df_all = pd.read_table(
             path.join(dbdir, "EXCEL50", "TEXT", "KAYCDALL.TXT"),
             skipinitialspace=True,
             dtype={
                 # fmt: off
                 **{col: 'Int32' for col in ["AGE", "#", "NVB", "NSH", "NUV", "SEG", "PER"]},
-                **{col: "string" for col in ["PAT_ID", "FILE VOWEL 'AH'"]},
-                **{col: "category" for col in ["SEX", "DIAGNOSIS", "LOCATION", "NATLANG", "ORIGIN"]},
+                **{col: "string" for col in ["PAT_ID", "FILE VOWEL 'AH'", "DIAGNOSIS", "LOCATION"]},
+                **{col: "category" for col in ["SEX", "NATLANG", "ORIGIN"]},
                 **{col: float for col in ["Fo", "To", "Fhi", "Flo", "STD", "PFR", "Fftr", "Fatr", "Tsam", "Jita", 
                                         "Jitt", "RAP", "PQ", "sPPQ", "vFo", "ShdB", "Shim", "APQ", "sAPQ", 
                                         "vAm", "NHR", "VTI", "SPI", "FTRI", "ATRI", "DVB", "DSH", "DUV"]},
@@ -84,58 +99,47 @@ class KPDVDB:
             false_values=["N"],
         )
 
-        # add PAT_ID if missing (use unique ID based on the file name)
+        # drop the columns related to diagnosis
+        df = df_all.groupby("FILE VOWEL 'AH'")[
+            df_all.columns.drop(["#", "DIAGNOSIS", "LOCATION"])
+        ].first()
+
+        # reindex using the first 5 letters of the wav files
+        df.index = df.index.str[:5]
+        df.index.name = "ID"
+
+        # merge the rainbow files
+        df = df.merge(
+            files[["NORM", "FILE RAINBOW", "FILE AH"]],
+            "left" if remove_unknowns else "outer",
+            left_on="FILE VOWEL 'AH'",
+            right_on="FILE AH",
+        ).drop(columns=["FILE VOWEL 'AH'"])
+
         if remove_unknowns:
+            # drop all entries with unknown PAT_ID (incl. norm)
             df = df[df["PAT_ID"].notna()]
-        else:
-            tf = pd.isna(df["PAT_ID"])
-            df.loc[tf, "PAT_ID"] = df.loc[tf, "FILE VOWEL 'AH'"].str.slice(stop=-6)
+
+        # add PAT_ID if missing (use unique ID based on the file name)
+        df["ID"] = df["FILE AH"].str[:5]
+        tf = df["ID"].isna() & df["FILE RAINBOW"].notna()
+        df.loc[tf, "ID"] = df.loc[tf, "FILE RAINBOW"].str[:5]
+        df = df.set_index("ID").sort_index()
 
         # split dx
-        df_dx = df[["PAT_ID", "VISITDATE", "DIAGNOSIS", "LOCATION"]]
-        df.drop(columns=["#", "DIAGNOSIS", "LOCATION"], inplace=True)
-        df.drop_duplicates(subset=["PAT_ID", "VISITDATE"], inplace=True)
-        df.reset_index(inplace=True, drop=True)
+        df_dx = df_all.set_index("FILE VOWEL 'AH'")[["DIAGNOSIS", "LOCATION"]]
+        df_dx = df_dx[df_dx["DIAGNOSIS"].notna()]  # drop empty
 
-        # assign for rainbow
-        ra_names = set((path.basename(f) for f in ra_files))
-
-        # remove entries without PAT_ID or FILE VOWEL 'AH'
-        n = df.shape[0]
-        rnames = [None] * n
-        isnorms = np.empty(n, bool)
-        tf = np.zeros(n, bool)
-        for row in range(n):
-            aname = df.at[row, "FILE VOWEL 'AH'"]
-            if pd.isna(aname):
-                id = df.at[row, "PAT_ID"][:3]
-                rname = f"{id}1NRL.NSP"
-                isnorms[row] = isnorm = rname in ra_names
-                if not isnorm:
-                    day = df.at[row, "VISITDATE"].day
-                    rname = f"{id}{day:02}R.NSP"
-            else:
-                isnorms[row] = isnorm = aname.endswith("NAL.NSP")
-                rname = (
-                    re.sub(r"NAL\.NSP$", "NRL.NSP", aname)
-                    if isnorm
-                    else re.sub(r"AN\.NSP$", "R.NSP", aname)
-                )
-
-            if rname in ra_names:
-                rnames[row] = rname
-            else:
-                tf[row] = True
-
-        df.insert(3, "FILE RAINBOW", pd.Series(rnames, dtype="string"))
-        df.insert(3, "NORM", pd.Series(isnorms, dtype="boolean"))
-        df.drop(index=np.where(tf)[0], inplace=True)
-        df.reset_index(inplace=True, drop=True)
-        df.index.set_names("ID", inplace=True)
+        # update the df_dx to get the ID instead of the file name
+        df_dx = (
+            df_dx.merge(df["FILE AH"], "left", left_index=True, right_on="FILE AH")
+            .drop(columns="FILE AH")
+            .sort_index()
+        )
 
         self._dir = dbdir
         self._df = df
-        self._df_dx = df_dx[df_dx["DIAGNOSIS"].notna()]
+        self._df_dx = df_dx
         self._dx = None
 
     def get_fields(self) -> List[str]:
@@ -359,7 +363,7 @@ class KPDVDB:
         try:
             col, subdir = {
                 "rainbow": ("FILE RAINBOW", "RAINBOW"),
-                "ah": ("FILE VOWEL 'AH'", "AH"),
+                "ah": ("FILE AH", "AH"),
             }[task]
         except:
             raise ValueError(
