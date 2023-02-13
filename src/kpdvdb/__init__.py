@@ -6,11 +6,14 @@ import pandas as pd
 from os import path
 import numpy as np
 from glob import glob
-import re, operator
+import operator
 import nspfile
-from typing import Literal, Tuple, List
+from collections.abc import Sequence
+from typing import Literal, Tuple, List, Union, Iterator, Optional
 
 TaskType = Literal["AH", "RAINBOW"]
+
+ChannelType = Union[str, int, Sequence[Union[str, int]]]
 
 DataField = Literal[
     # fmt:off
@@ -318,7 +321,7 @@ class KPDVDB:
         auxdata_fields: List[DataField] = None,
         diagnoses_filter: List[str] = None,
         **filters,
-    ) -> List[str] | Tuple[List[str], pd.DataFrame]:
+    ) -> Union[List[str], Tuple[List[str], pd.DataFrame]]:
         """get NSP filepaths
 
         :param task: utterance task
@@ -395,12 +398,12 @@ class KPDVDB:
     def iter_data(
         self,
         task: TaskType,
-        channels: str | int | list = None,
+        channels: ChannelType = None,
         auxdata_fields: List[DataField] = None,
         normalize: bool = True,
         diagnoses_filter: List[str] = None,
         **filters,
-    ):
+    ) -> Iterator[Tuple[str, np.array, Optional[pd.Series]]]:
         """iterate over data samples
 
         :param task: utterance task
@@ -481,19 +484,19 @@ class KPDVDB:
 
     def read_data(
         self,
-        id: int,
+        id: str,
         task: TaskType = None,
-        channels: str | int | list = None,
+        channels: ChannelType = None,
         normalize: bool = True,
     ) -> Tuple[int, np.array]:
         """read audio data of one voice task of a recording session
 
         :param id: recording id
-        :type id: int
+        :type id: str
         :param task: voice task, defaults to None
         :type task: TaskType, optional
         :param channels: audio channel, defaults to None
-        :type channels: str | int | list, optional
+        :type channels: ChannelType, optional
         :param normalize: True to normalize data between -1 and 1, defaults to True
         :type normalize: bool, optional
         :return: tuple of sampling rate in S/s and data samples numpy array
@@ -505,7 +508,7 @@ class KPDVDB:
     def _read_file(self, file, channels=None, normalize=True):
         fs, x = nspfile.read(file, channels)
         if normalize:
-            x = x / 2.0**15
+            x = x / 2.0 ** 15
         return fs, x
 
     def __getitem__(self, key: str) -> Tuple[str, np.array]:
