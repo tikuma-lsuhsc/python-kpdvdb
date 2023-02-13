@@ -1,25 +1,5 @@
-from kpdvdb import KPDVDB
-import pandas as pd
-from os import path
 import numpy as np
-from glob import glob
-import re
-import pytest
-
-
-def load_db(remove_unknowns=False):
-    return KPDVDB(
-        r"C:\Users\tikum\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # excalibur
-        # r"C:\Users\tikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database", # samsung
-        # r"C:\Users\Takeshi Ikuma\OneDrive - LSUHSC\data\KayPENTAX Disordered Voice Database",  # olol
-        remove_unknowns,
-    )
-
-
-@pytest.fixture(scope="module")
-def kpdvdb():
-    return load_db()
-
+from conftest import load_db
 
 def test_basics(kpdvdb):
     print(kpdvdb.get_fields())
