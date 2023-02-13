@@ -507,3 +507,6 @@ class KPDVDB:
         if normalize:
             x = x / 2.0**15
         return fs, x
+
+    def __getitem__(self, key: str) -> Tuple[str, np.array]:
+        return self.read_data(key)
