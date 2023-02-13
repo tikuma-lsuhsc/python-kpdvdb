@@ -89,8 +89,8 @@ class KPDVDB:
             dtype={
                 # fmt: off
                 **{col: 'Int32' for col in ["AGE", "#", "NVB", "NSH", "NUV", "SEG", "PER"]},
-                **{col: "string" for col in ["PAT_ID", "FILE VOWEL 'AH'", "DIAGNOSIS", "LOCATION"]},
-                **{col: "category" for col in ["SEX", "NATLANG", "ORIGIN"]},
+                **{col: "string" for col in ["PAT_ID", "FILE VOWEL 'AH'", "LOCATION"]},
+                **{col: "category" for col in ["SEX", "NATLANG", "ORIGIN", "DIAGNOSIS"]},
                 **{col: float for col in ["Fo", "To", "Fhi", "Flo", "STD", "PFR", "Fftr", "Fatr", "Tsam", "Jita", 
                                         "Jitt", "RAP", "PQ", "sPPQ", "vFo", "ShdB", "Shim", "APQ", "sAPQ", 
                                         "vAm", "NHR", "VTI", "SPI", "FTRI", "ATRI", "DVB", "DSH", "DUV"]},
