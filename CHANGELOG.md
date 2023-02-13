@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.6.1] - 2023-02-12
+
+### Fixed
+
+- Errors to query `DIAGNOSIS` (introduced by new indexing in 0.6.0)
+
+### Added
+
+- `__getitem__` support
+
 ## [0.6.0] - 2023-02-09
 
 ### Changed
