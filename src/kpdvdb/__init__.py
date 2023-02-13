@@ -192,16 +192,8 @@ class KPDVDB:
 
     def _get_dx_series(self):
         if self._dx is None:  # one-time operation
-            self._dx = pd.Series(
-                [
-                    self._df_dx[
-                        (self._df_dx["PAT_ID"] == id)
-                        & (self._df_dx["VISITDATE"] == date)
-                    ]["DIAGNOSIS"]
-                    .dropna()
-                    .tolist()
-                    for id, date in zip(self._df["PAT_ID"], self._df["VISITDATE"])
-                ]
+            self._dx = (
+                self._df_dx["DIAGNOSIS"].groupby("ID").apply(lambda x: x.tolist())
             )
         return self._dx
 
@@ -277,7 +269,9 @@ class KPDVDB:
 
             if fcol == "DIAGNOSES":
                 fcond = set([fcond]) if isinstance(fcond, str) else set(fcond)
-                df = df[[len(fcond & set(v)) > 0 for v in s]]
+                df = df[
+                    s.map(lambda v: isinstance(v, list) and len(fcond & set(v)) > 0)
+                ]
             else:
                 try:  # try range/multi-choices
                     if s.dtype.kind in "iufcM":  # numeric/date
@@ -291,7 +285,9 @@ class KPDVDB:
 
         # if diagnosis screening function is given, further filter the rows
         if diagnoses_filter:
-            df = df[[diagnoses_filter(v) for v in df["DIAGNOSES"]]]
+            df = df[
+                [isinstance(v, list) and diagnoses_filter(v) for v in df["DIAGNOSES"]]
+            ]
 
             if not incl_dx:
                 # if dx not requested, drop it
@@ -508,7 +504,7 @@ class KPDVDB:
     def _read_file(self, file, channels=None, normalize=True):
         fs, x = nspfile.read(file, channels)
         if normalize:
-            x = x / 2.0 ** 15
+            x = x / 2.0**15
         return fs, x
 
     def __getitem__(self, key: str) -> Tuple[str, np.array]:
