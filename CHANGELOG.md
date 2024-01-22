@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.6.2] - 2024-01-21
+
+### Fixed
+
+- Removed warning during database loading (`_load_db()`)
+
 ## [0.6.1] - 2023-02-12
 
 ### Fixed

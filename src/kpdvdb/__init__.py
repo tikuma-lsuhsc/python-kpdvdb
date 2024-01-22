@@ -1,6 +1,6 @@
 """KayPENTAX Disordered Voice Database Reader module"""
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 import pandas as pd
 from os import path
