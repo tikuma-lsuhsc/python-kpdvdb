@@ -100,6 +100,7 @@ class KPDVDB:
             parse_dates=["VISITDATE"],
             true_values=["Y"],
             false_values=["N"],
+            date_format=["VISITDATE"],
         )
 
         # drop the columns related to diagnosis
