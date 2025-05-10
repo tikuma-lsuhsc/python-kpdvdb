@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.6.3] - 2025-05-10
+
+### Fixed
+
+- Fixed `get_files()` handling of `auxdata` argument
+
 ## [0.6.2] - 2024-01-21
 
 ### Fixed

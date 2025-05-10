@@ -1,6 +1,6 @@
 """KayPENTAX Disordered Voice Database Reader module"""
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 import pandas as pd
 from os import path
@@ -379,8 +379,8 @@ class KPDVDB:
             diagnoses_filter=diagnoses_filter,
             **filters,
         )
-        df = df[df.iloc[:, 0].notna()]  # drop entries w/out file
-        fdf = df.iloc[:, :2]
+        df = df[df.loc[:, columns[0]].notna()]  # drop entries w/out file
+        fdf = df.loc[:, columns[:2]]
         files = [
             path.join(self._dir, "NORM" if isnorm else "PATHOL", subdir, f)
             for f, isnorm in zip(fdf[col], fdf["NORM"])
@@ -389,7 +389,7 @@ class KPDVDB:
         return (
             files
             if auxdata_fields is None
-            else (files, df.iloc[:, 2:].reset_index(drop=True))
+            else (files, df.reset_index()[auxdata_fields])
         )
 
     def iter_data(
